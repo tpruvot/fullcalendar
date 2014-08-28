@@ -162,6 +162,17 @@ function BasicYearView(element, calendar, viewName) {
 		updateCells();
 		opt('debug') && debugCellOffsets();
 		buildCoordGrids();
+
+		// trigger user defined dayRender callback
+		if (typeof(t.opt('dayRender')) == 'undefined')
+			return;
+		bodyCells.each(function(i, _cell) {
+			var match = this.className.match(/fc\-day\-(\d+)\-(\d+)\-(\d+)/);
+			if (match != null) {
+				var date = new Date(match[1], match[2]-1, match[3]);
+				trigger('dayRender', t, date, $(_cell));
+			}
+		});
 	}
 
 	function updateOptions() {

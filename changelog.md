@@ -1,3 +1,8 @@
+v1.6.4-yearview dev (2014-08-28)
+--------------------------------
+
+- Add dayRender trigger to the year view
+
 v1.6.4-yearview 1.7 (2014-02-23)
 --------------------------------
 
