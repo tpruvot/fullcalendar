@@ -1,894 +1,430 @@
 
+/* An abstract class for all agenda-related views. Displays one more columns with time slots running vertically.
+----------------------------------------------------------------------------------------------------------------------*/
+// Is a manager for the TimeGrid subcomponent and possibly the DayGrid subcomponent (if allDaySlot is on).
+// Responsible for managing width/height.
+
 setDefaults({
 	allDaySlot: true,
 	allDayText: 'all-day',
-	firstHour: 6,
-	slotMinutes: 30,
-	defaultEventMinutes: 120,
-	axisFormat: 'h(:mm)tt',
+
+	scrollTime: '06:00:00',
+
+	slotDuration: '00:30:00',
+
+	axisFormat: generateAgendaAxisFormat,
 	timeFormat: {
-		agenda: 'h:mm{ - h:mm}'
+		agenda: generateAgendaTimeFormat
 	},
-	dragOpacity: {
-		agenda: .5
-	},
-	minTime: 0,
-	maxTime: 24,
+
+	minTime: '00:00:00',
+	maxTime: '24:00:00',
 	slotEventOverlap: true
 });
 
-
-// TODO: make it work in quirks mode (event corners, all-day height)
-// TODO: test liquid width, especially in IE6
+var AGENDA_ALL_DAY_EVENT_LIMIT = 5;
 
 
-function AgendaView(element, calendar, viewName) {
-	var t = this;
-	
-	
-	// exports
-	t.renderAgenda = renderAgenda;
-	t.setWidth = setWidth;
-	t.setHeight = setHeight;
-	t.afterRender = afterRender;
-	t.defaultEventEnd = defaultEventEnd;
-	t.timePosition = timePosition;
-	t.getIsCellAllDay = getIsCellAllDay;
-	t.allDayRow = getAllDayRow;
-	t.getCoordinateGrid = function() { return coordinateGrid }; // specifically for AgendaEventRenderer
-	t.getHoverListener = function() { return hoverListener };
-	t.colLeft = colLeft;
-	t.colRight = colRight;
-	t.colContentLeft = colContentLeft;
-	t.colContentRight = colContentRight;
-	t.getDaySegmentContainer = function() { return daySegmentContainer };
-	t.getSlotSegmentContainer = function() { return slotSegmentContainer };
-	t.getMinMinute = function() { return minMinute };
-	t.getMaxMinute = function() { return maxMinute };
-	t.getSlotContainer = function() { return slotContainer };
-	t.getRowCnt = function() { return 1 };
-	t.getColCnt = function() { return colCnt };
-	t.getColWidth = function() { return colWidth };
-	t.getSnapHeight = function() { return snapHeight };
-	t.getSnapMinutes = function() { return snapMinutes };
-	t.defaultSelectionEnd = defaultSelectionEnd;
-	t.renderDayOverlay = renderDayOverlay;
-	t.renderSelection = renderSelection;
-	t.clearSelection = clearSelection;
-	t.reportDayClick = reportDayClick; // selection mousedown hack
-	t.dragStart = dragStart;
-	t.dragStop = dragStop;
-	
-	
-	// imports
-	View.call(t, element, calendar, viewName);
-	OverlayManager.call(t);
-	SelectionManager.call(t);
-	AgendaEventRenderer.call(t);
-	var opt = t.opt;
-	var trigger = t.trigger;
-	var renderOverlay = t.renderOverlay;
-	var clearOverlays = t.clearOverlays;
-	var reportSelection = t.reportSelection;
-	var unselect = t.unselect;
-	var daySelectionMousedown = t.daySelectionMousedown;
-	var slotSegHtml = t.slotSegHtml;
-	var cellToDate = t.cellToDate;
-	var dateToCell = t.dateToCell;
-	var rangeToSegments = t.rangeToSegments;
-	var formatDate = calendar.formatDate;
-	
-	
-	// locals
-	
-	var dayTable;
-	var dayHead;
-	var dayHeadCells;
-	var dayBody;
-	var dayBodyCells;
-	var dayBodyCellInners;
-	var dayBodyCellContentInners;
-	var dayBodyFirstCell;
-	var dayBodyFirstCellStretcher;
-	var slotLayer;
-	var daySegmentContainer;
-	var allDayTable;
-	var allDayRow;
-	var slotScroller;
-	var slotContainer;
-	var slotSegmentContainer;
-	var slotTable;
-	var selectionHelper;
-	
-	var viewWidth;
-	var viewHeight;
-	var axisWidth;
-	var colWidth;
-	var gutterWidth;
-	var slotHeight; // TODO: what if slotHeight changes? (see issue 650)
+function generateAgendaAxisFormat(options, langData) {
+	return langData.longDateFormat('LT')
+		.replace(':mm', '(:mm)')
+		.replace(/(\Wmm)$/, '($1)') // like above, but for foreign langs
+		.replace(/\s*a$/i, 'a'); // convert AM/PM/am/pm to lowercase. remove any spaces beforehand
+}
 
-	var snapMinutes;
-	var snapRatio; // ratio of number of "selection" slots to normal slots. (ex: 1, 2, 4)
-	var snapHeight; // holds the pixel hight of a "selection" slot
-	
-	var colCnt;
-	var slotCnt;
-	var coordinateGrid;
-	var hoverListener;
-	var colPositions;
-	var colContentPositions;
-	var slotTopCache = {};
-	
-	var tm;
-	var rtl;
-	var minMinute, maxMinute;
-	var colFormat;
-	var showWeekNumbers;
-	var weekNumberTitle;
-	var weekNumberFormat;
-	
 
-	
+function generateAgendaTimeFormat(options, langData) {
+	return langData.longDateFormat('LT')
+		.replace(/\s*a$/i, ''); // remove trailing AM/PM
+}
+
+
+function AgendaView(calendar) {
+	View.call(this, calendar); // call the super-constructor
+
+	this.timeGrid = new TimeGrid(this);
+
+	if (this.opt('allDaySlot')) { // should we display the "all-day" area?
+		this.dayGrid = new DayGrid(this); // the all-day subcomponent of this view
+
+		// the coordinate grid will be a combination of both subcomponents' grids
+		this.coordMap = new ComboCoordMap([
+			this.dayGrid.coordMap,
+			this.timeGrid.coordMap
+		]);
+	}
+	else {
+		this.coordMap = this.timeGrid.coordMap;
+	}
+}
+
+
+AgendaView.prototype = createObject(View.prototype); // define the super-class
+$.extend(AgendaView.prototype, {
+
+	timeGrid: null, // the main time-grid subcomponent of this view
+	dayGrid: null, // the "all-day" subcomponent. if all-day is turned off, this will be null
+
+	axisWidth: null, // the width of the time axis running down the side
+
+	noScrollRowEls: null, // set of fake row elements that must compensate when scrollerEl has scrollbars
+
+	// when the time-grid isn't tall enough to occupy the given height, we render an <hr> underneath
+	bottomRuleEl: null,
+	bottomRuleHeight: null,
+
+
 	/* Rendering
-	-----------------------------------------------------------------------------*/
-	
-	
-	disableTextSelection(element.addClass('fc-agenda'));
-	
-	
-	function renderAgenda(c) {
-		colCnt = c;
-		updateOptions();
+	------------------------------------------------------------------------------------------------------------------*/
 
-		if (!dayTable) { // first time rendering?
-			buildSkeleton(); // builds day table, slot area, events containers
-		}
-		else {
-			buildDayTable(); // rebuilds day table
-		}
-	}
-	
-	
-	function updateOptions() {
 
-		tm = opt('theme') ? 'ui' : 'fc';
-		rtl = opt('isRTL')
-		minMinute = parseTime(opt('minTime'));
-		maxMinute = parseTime(opt('maxTime'));
-		colFormat = opt('columnFormat');
+	// Renders the view into `this.el`, which has already been assigned.
+	// `colCnt` has been calculated by a subclass and passed here.
+	render: function(colCnt) {
 
-		// week # options. (TODO: bad, logic also in other views)
-		showWeekNumbers = opt('weekNumbers');
-		weekNumberTitle = opt('weekNumberTitle');
-		if (opt('weekNumberCalculation') != 'iso') {
-			weekNumberFormat = "w";
-		}
-		else {
-			weekNumberFormat = "W";
+		// needed for cell-to-date and date-to-cell calculations in View
+		this.rowCnt = 1;
+		this.colCnt = colCnt;
+
+		this.el.addClass('fc-agenda-view').html(this.renderHtml());
+
+		// the element that wraps the time-grid that will probably scroll
+		this.scrollerEl = this.el.find('.fc-time-grid-container');
+		this.timeGrid.coordMap.containerEl = this.scrollerEl; // don't accept clicks/etc outside of this
+
+		this.timeGrid.el = this.el.find('.fc-time-grid');
+		this.timeGrid.render();
+
+		// the <hr> that sometimes displays under the time-grid
+		this.bottomRuleEl = $('<hr class="' + this.widgetHeaderClass + '"/>')
+			.appendTo(this.timeGrid.el); // inject it into the time-grid
+
+		if (this.dayGrid) {
+			this.dayGrid.el = this.el.find('.fc-day-grid');
+			this.dayGrid.render();
+
+			// have the day-grid extend it's coordinate area over the <hr> dividing the two grids
+			this.dayGrid.bottomCoordPadding = this.dayGrid.el.next('hr').outerHeight();
 		}
 
-		snapMinutes = opt('snapMinutes') || opt('slotMinutes');
-	}
+		this.noScrollRowEls = this.el.find('.fc-row:not(.fc-scroller *)'); // fake rows not within the scroller
+
+		View.prototype.render.call(this); // call the super-method
+
+		this.resetScroll(); // do this after sizes have been set
+	},
 
 
-
-	/* Build DOM
-	-----------------------------------------------------------------------*/
-
-
-	function buildSkeleton() {
-		var headerClass = tm + "-widget-header";
-		var contentClass = tm + "-widget-content";
-		var s;
-		var d;
-		var i;
-		var maxd;
-		var minutes;
-		var slotNormal = opt('slotMinutes') % 15 == 0;
-		
-		buildDayTable();
-		
-		slotLayer =
-			$("<div style='position:absolute;z-index:2;left:0;width:100%'/>")
-				.appendTo(element);
-				
-		if (opt('allDaySlot')) {
-		
-			daySegmentContainer =
-				$("<div class='fc-event-container' style='position:absolute;z-index:8;top:0;left:0'/>")
-					.appendTo(slotLayer);
-		
-			s =
-				"<table style='width:100%' class='fc-agenda-allday' cellspacing='0'>" +
-				"<tr>" +
-				"<th class='" + headerClass + " fc-agenda-axis'>" + opt('allDayText') + "</th>" +
-				"<td>" +
-				"<div class='fc-day-content'><div style='position:relative'/></div>" +
-				"</td>" +
-				"<th class='" + headerClass + " fc-agenda-gutter'>&nbsp;</th>" +
-				"</tr>" +
-				"</table>";
-			allDayTable = $(s).appendTo(slotLayer);
-			allDayRow = allDayTable.find('tr');
-			
-			dayBind(allDayRow.find('td'));
-			
-			slotLayer.append(
-				"<div class='fc-agenda-divider " + headerClass + "'>" +
-				"<div class='fc-agenda-divider-inner'/>" +
-				"</div>"
-			);
-			
-		}else{
-		
-			daySegmentContainer = $([]); // in jQuery 1.4, we can just do $()
-		
+	// Make subcomponents ready for cleanup
+	destroy: function() {
+		this.timeGrid.destroy();
+		if (this.dayGrid) {
+			this.dayGrid.destroy();
 		}
-		
-		slotScroller =
-			$("<div style='position:absolute;width:100%;overflow-x:hidden;overflow-y:auto'/>")
-				.appendTo(slotLayer);
-				
-		slotContainer =
-			$("<div style='position:relative;width:100%;overflow:hidden'/>")
-				.appendTo(slotScroller);
-				
-		slotSegmentContainer =
-			$("<div class='fc-event-container' style='position:absolute;z-index:8;top:0;left:0'/>")
-				.appendTo(slotContainer);
-		
-		s =
-			"<table class='fc-agenda-slots' style='width:100%' cellspacing='0'>" +
-			"<tbody>";
-		d = zeroDate();
-		maxd = addMinutes(cloneDate(d), maxMinute);
-		addMinutes(d, minMinute);
-		slotCnt = 0;
-		for (i=0; d < maxd; i++) {
-			minutes = d.getMinutes();
-			s +=
-				"<tr class='fc-slot" + i + ' ' + (!minutes ? '' : 'fc-minor') + "'>" +
-				"<th class='fc-agenda-axis " + headerClass + "'>" +
-				((!slotNormal || !minutes) ? formatDate(d, opt('axisFormat')) : '&nbsp;') +
-				"</th>" +
-				"<td class='" + contentClass + "'>" +
-				"<div style='position:relative'>&nbsp;</div>" +
-				"</td>" +
-				"</tr>";
-			addMinutes(d, opt('slotMinutes'));
-			slotCnt++;
-		}
-		s +=
-			"</tbody>" +
-			"</table>";
-		slotTable = $(s).appendTo(slotContainer);
-		
-		slotBind(slotTable.find('td'));
-	}
+		View.prototype.destroy.call(this); // call the super-method
+	},
 
 
-
-	/* Build Day Table
-	-----------------------------------------------------------------------*/
-
-
-	function buildDayTable() {
-		var html = buildDayTableHTML();
-
-		if (dayTable) {
-			dayTable.remove();
-		}
-		dayTable = $(html).appendTo(element);
-
-		dayHead = dayTable.find('thead');
-		dayHeadCells = dayHead.find('th').slice(1, -1); // exclude gutter
-		dayBody = dayTable.find('tbody');
-		dayBodyCells = dayBody.find('td').slice(0, -1); // exclude gutter
-		dayBodyCellInners = dayBodyCells.find('> div');
-		dayBodyCellContentInners = dayBodyCells.find('.fc-day-content > div');
-
-		dayBodyFirstCell = dayBodyCells.eq(0);
-		dayBodyFirstCellStretcher = dayBodyCellInners.eq(0);
-		
-		markFirstLast(dayHead.add(dayHead.find('tr')));
-		markFirstLast(dayBody.add(dayBody.find('tr')));
-
-		// TODO: now that we rebuild the cells every time, we should call dayRender
-	}
-
-
-	function buildDayTableHTML() {
-		var html =
-			"<table style='width:100%' class='fc-agenda-days fc-border-separate' cellspacing='0'>" +
-			buildDayTableHeadHTML() +
-			buildDayTableBodyHTML() +
-			"</table>";
-
-		return html;
-	}
+	// Builds the HTML skeleton for the view.
+	// The day-grid and time-grid components will render inside containers defined by this HTML.
+	renderHtml: function() {
+		return '' +
+			'<table>' +
+				'<thead>' +
+					'<tr>' +
+						'<td class="' + this.widgetHeaderClass + '">' +
+							this.timeGrid.headHtml() + // render the day-of-week headers
+						'</td>' +
+					'</tr>' +
+				'</thead>' +
+				'<tbody>' +
+					'<tr>' +
+						'<td class="' + this.widgetContentClass + '">' +
+							(this.dayGrid ?
+								'<div class="fc-day-grid"/>' +
+								'<hr class="' + this.widgetHeaderClass + '"/>' :
+								''
+								) +
+							'<div class="fc-time-grid-container">' +
+								'<div class="fc-time-grid"/>' +
+							'</div>' +
+						'</td>' +
+					'</tr>' +
+				'</tbody>' +
+			'</table>';
+	},
 
 
-	function buildDayTableHeadHTML() {
-		var headerClass = tm + "-widget-header";
+	// Generates the HTML that will go before the day-of week header cells.
+	// Queried by the TimeGrid subcomponent when generating rows. Ordering depends on isRTL.
+	headIntroHtml: function() {
 		var date;
-		var html = '';
+		var weekNumber;
+		var weekTitle;
 		var weekText;
-		var col;
 
-		html +=
-			"<thead>" +
-			"<tr>";
+		if (this.opt('weekNumbers')) {
+			date = this.cellToDate(0, 0);
+			weekNumber = this.calendar.calculateWeekNumber(date);
+			weekTitle = this.opt('weekNumberTitle');
 
-		if (showWeekNumbers) {
-			date = cellToDate(0, 0);
-			weekText = formatDate(date, weekNumberFormat);
-			if (rtl) {
-				weekText += weekNumberTitle;
+			if (this.opt('isRTL')) {
+				weekText = weekNumber + weekTitle;
 			}
 			else {
-				weekText = weekNumberTitle + weekText;
+				weekText = weekTitle + weekNumber;
 			}
-			html +=
-				"<th class='fc-agenda-axis fc-week-number " + headerClass + "'>" +
-				htmlEscape(weekText) +
-				"</th>";
+
+			return '' +
+				'<th class="fc-axis fc-week-number ' + this.widgetHeaderClass + '" ' + this.axisStyleAttr() + '>' +
+					'<span>' + // needed for matchCellWidths
+						htmlEscape(weekText) +
+					'</span>' +
+				'</th>';
 		}
 		else {
-			html += "<th class='fc-agenda-axis " + headerClass + "'>&nbsp;</th>";
+			return '<th class="fc-axis ' + this.widgetHeaderClass + '" ' + this.axisStyleAttr() + '></th>';
 		}
+	},
 
-		for (col=0; col<colCnt; col++) {
-			date = cellToDate(0, col);
-			html +=
-				"<th class='fc-" + dayIDs[date.getDay()] + " fc-col" + col + ' ' + headerClass + "'>" +
-				htmlEscape(formatDate(date, colFormat)) +
-				"</th>";
+
+	// Generates the HTML that goes before the all-day cells.
+	// Queried by the DayGrid subcomponent when generating rows. Ordering depends on isRTL.
+	dayIntroHtml: function() {
+		return '' +
+			'<td class="fc-axis ' + this.widgetContentClass + '" ' + this.axisStyleAttr() + '>' +
+				'<span>' + // needed for matchCellWidths
+					(this.opt('allDayHtml') || htmlEscape(this.opt('allDayText'))) +
+				'</span>' +
+			'</td>';
+	},
+
+
+	// Generates the HTML that goes before the bg of the TimeGrid slot area. Long vertical column.
+	slotBgIntroHtml: function() {
+		return '<td class="fc-axis ' + this.widgetContentClass + '" ' + this.axisStyleAttr() + '></td>';
+	},
+
+
+	// Generates the HTML that goes before all other types of cells.
+	// Affects content-skeleton, helper-skeleton, highlight-skeleton for both the time-grid and day-grid.
+	// Queried by the TimeGrid and DayGrid subcomponents when generating rows. Ordering depends on isRTL.
+	introHtml: function() {
+		return '<td class="fc-axis" ' + this.axisStyleAttr() + '></td>';
+	},
+
+
+	// Generates an HTML attribute string for setting the width of the axis, if it is known
+	axisStyleAttr: function() {
+		if (this.axisWidth !== null) {
+			 return 'style="width:' + this.axisWidth + 'px"';
 		}
-
-		html +=
-			"<th class='fc-agenda-gutter " + headerClass + "'>&nbsp;</th>" +
-			"</tr>" +
-			"</thead>";
-
-		return html;
-	}
+		return '';
+	},
 
 
-	function buildDayTableBodyHTML() {
-		var headerClass = tm + "-widget-header"; // TODO: make these when updateOptions() called
-		var contentClass = tm + "-widget-content";
-		var date;
-		var today = clearTime(new Date());
-		var col;
-		var cellsHTML;
-		var cellHTML;
-		var classNames;
-		var html = '';
-
-		html +=
-			"<tbody>" +
-			"<tr>" +
-			"<th class='fc-agenda-axis " + headerClass + "'>&nbsp;</th>";
-
-		cellsHTML = '';
-
-		for (col=0; col<colCnt; col++) {
-
-			date = cellToDate(0, col);
-
-			classNames = [
-				'fc-col' + col,
-				'fc-' + dayIDs[date.getDay()],
-				contentClass
-			];
-			if (+date == +today) {
-				classNames.push(
-					tm + '-state-highlight',
-					'fc-today'
-				);
-			}
-			else if (date < today) {
-				classNames.push('fc-past');
-			}
-			else {
-				classNames.push('fc-future');
-			}
-
-			cellHTML =
-				"<td class='" + classNames.join(' ') + "'>" +
-				"<div>" +
-				"<div class='fc-day-content'>" +
-				"<div style='position:relative'>&nbsp;</div>" +
-				"</div>" +
-				"</div>" +
-				"</td>";
-
-			cellsHTML += cellHTML;
-		}
-
-		html += cellsHTML;
-		html +=
-			"<td class='fc-agenda-gutter " + contentClass + "'>&nbsp;</td>" +
-			"</tr>" +
-			"</tbody>";
-
-		return html;
-	}
-
-
-	// TODO: data-date on the cells
-
-	
-	
 	/* Dimensions
-	-----------------------------------------------------------------------*/
+	------------------------------------------------------------------------------------------------------------------*/
 
-	
-	function setHeight(height) {
-		if (height === undefined) {
-			height = viewHeight;
+	updateSize: function(isResize) {
+		if (isResize) {
+			this.timeGrid.resize();
 		}
-		viewHeight = height;
-		slotTopCache = {};
-	
-		var headHeight = dayBody.position().top;
-		var allDayHeight = slotScroller.position().top; // including divider
-		var bodyHeight = Math.min( // total body height, including borders
-			height - headHeight,   // when scrollbars
-			slotTable.height() + allDayHeight + 1 // when no scrollbars. +1 for bottom border
-		);
+		View.prototype.updateSize.call(this, isResize);
+	},
 
-		dayBodyFirstCellStretcher
-			.height(bodyHeight - vsides(dayBodyFirstCell));
-		
-		slotLayer.css('top', headHeight);
-		
-		slotScroller.height(bodyHeight - allDayHeight - 1);
-		
-		// the stylesheet guarantees that the first row has no border.
-		// this allows .height() to work well cross-browser.
-		slotHeight = slotTable.find('tr:first').height() + 1; // +1 for bottom border
 
-		snapRatio = opt('slotMinutes') / snapMinutes;
-		snapHeight = slotHeight / snapRatio;
-	}
-	
-	
-	function setWidth(width) {
-		viewWidth = width;
-		colPositions.clear();
-		colContentPositions.clear();
+	// Refreshes the horizontal dimensions of the view
+	updateWidth: function() {
+		// make all axis cells line up, and record the width so newly created axis cells will have it
+		this.axisWidth = matchCellWidths(this.el.find('.fc-axis'));
+	},
 
-		var axisFirstCells = dayHead.find('th:first');
-		if (allDayTable) {
-			axisFirstCells = axisFirstCells.add(allDayTable.find('th:first'));
+
+	// Adjusts the vertical dimensions of the view to the specified values
+	setHeight: function(totalHeight, isAuto) {
+		var eventLimit;
+		var scrollerHeight;
+
+		if (this.bottomRuleHeight === null) {
+			// calculate the height of the rule the very first time
+			this.bottomRuleHeight = this.bottomRuleEl.outerHeight();
 		}
-		axisFirstCells = axisFirstCells.add(slotTable.find('th:first'));
-		
-		axisWidth = 0;
-		setOuterWidth(
-			axisFirstCells
-				.width('')
-				.each(function(i, _cell) {
-					axisWidth = Math.max(axisWidth, $(_cell).outerWidth());
-				}),
-			axisWidth
-		);
-		
-		var gutterCells = dayTable.find('.fc-agenda-gutter');
-		if (allDayTable) {
-			gutterCells = gutterCells.add(allDayTable.find('th.fc-agenda-gutter'));
+		this.bottomRuleEl.hide(); // .show() will be called later if this <hr> is necessary
+
+		// reset all dimensions back to the original state
+		this.scrollerEl.css('overflow', '');
+		unsetScroller(this.scrollerEl);
+		uncompensateScroll(this.noScrollRowEls);
+
+		// limit number of events in the all-day area
+		if (this.dayGrid) {
+			this.dayGrid.destroySegPopover(); // kill the "more" popover if displayed
+
+			eventLimit = this.opt('eventLimit');
+			if (eventLimit && typeof eventLimit !== 'number') {
+				eventLimit = AGENDA_ALL_DAY_EVENT_LIMIT; // make sure "auto" goes to a real number
+			}
+			if (eventLimit) {
+				this.dayGrid.limitRows(eventLimit);
+			}
 		}
 
-		var slotTableWidth = slotScroller[0].clientWidth; // needs to be done after axisWidth (for IE7)
-		
-		gutterWidth = slotScroller.width() - slotTableWidth;
-		if (gutterWidth) {
-			setOuterWidth(gutterCells, gutterWidth);
-			gutterCells
-				.show()
-				.prev()
-				.removeClass('fc-last');
-		}else{
-			gutterCells
-				.hide()
-				.prev()
-				.addClass('fc-last');
+		if (!isAuto) { // should we force dimensions of the scroll container, or let the contents be natural height?
+
+			scrollerHeight = this.computeScrollerHeight(totalHeight);
+			if (setPotentialScroller(this.scrollerEl, scrollerHeight)) { // using scrollbars?
+
+				// make the all-day and header rows lines up
+				compensateScroll(this.noScrollRowEls, getScrollbarWidths(this.scrollerEl));
+
+				// the scrollbar compensation might have changed text flow, which might affect height, so recalculate
+				// and reapply the desired height to the scroller.
+				scrollerHeight = this.computeScrollerHeight(totalHeight);
+				this.scrollerEl.height(scrollerHeight);
+
+				this.restoreScroll();
+			}
+			else { // no scrollbars
+				// still, force a height and display the bottom rule (marks the end of day)
+				this.scrollerEl.height(scrollerHeight).css('overflow', 'hidden'); // in case <hr> goes outside
+				this.bottomRuleEl.show();
+			}
 		}
-		
-		colWidth = Math.floor((slotTableWidth - axisWidth) / colCnt);
-		setOuterWidth(dayHeadCells.slice(0, -1), colWidth);
-	}
-	
+	},
 
 
-	/* Scrolling
-	-----------------------------------------------------------------------*/
+	// Sets the scroll value of the scroller to the intial pre-configured state prior to allowing the user to change it.
+	resetScroll: function() {
+		var _this = this;
+		var scrollTime = moment.duration(this.opt('scrollTime'));
+		var top = this.timeGrid.computeTimeTop(scrollTime);
 
+		// zoom can give weird floating-point values. rather scroll a little bit further
+		top = Math.ceil(top);
 
-	function resetScroll() {
-		var d0 = zeroDate();
-		var scrollDate = cloneDate(d0);
-		scrollDate.setHours(opt('firstHour'));
-		var top = timePosition(d0, scrollDate) + 1; // +1 for the border
+		if (top) {
+			top++; // to overcome top border that slots beyond the first have. looks better
+		}
+
 		function scroll() {
-			slotScroller.scrollTop(top);
+			_this.scrollerEl.scrollTop(top);
 		}
+
 		scroll();
 		setTimeout(scroll, 0); // overrides any previous scroll state made by the browser
-	}
+	},
 
 
-	function afterRender() { // after the view has been freshly rendered and sized
-		resetScroll();
-	}
-	
-	
-	
-	/* Slot/Day clicking and binding
-	-----------------------------------------------------------------------*/
-	
-
-	function dayBind(cells) {
-		cells.click(slotClick)
-			.mousedown(daySelectionMousedown);
-	}
+	/* Events
+	------------------------------------------------------------------------------------------------------------------*/
 
 
-	function slotBind(cells) {
-		cells.click(slotClick)
-			.mousedown(slotSelectionMousedown);
-	}
-	
-	
-	function slotClick(ev) {
-		if (!opt('selectable')) { // if selectable, SelectionManager will worry about dayClick
-			var col = Math.min(colCnt-1, Math.floor((ev.pageX - dayTable.offset().left - axisWidth) / colWidth));
-			var date = cellToDate(0, col);
-			var rowMatch = this.parentNode.className.match(/fc-slot(\d+)/); // TODO: maybe use data
-			if (rowMatch) {
-				var mins = parseInt(rowMatch[1]) * opt('slotMinutes');
-				var hours = Math.floor(mins/60);
-				date.setHours(hours);
-				date.setMinutes(mins%60 + minMinute);
-				trigger('dayClick', dayBodyCells[col], date, false, ev);
-			}else{
-				trigger('dayClick', dayBodyCells[col], date, true, ev);
+	// Renders events onto the view and populates the View's segment array
+	renderEvents: function(events) {
+		var dayEvents = [];
+		var timedEvents = [];
+		var daySegs = [];
+		var timedSegs;
+		var i;
+
+		// separate the events into all-day and timed
+		for (i = 0; i < events.length; i++) {
+			if (events[i].allDay) {
+				dayEvents.push(events[i]);
+			}
+			else {
+				timedEvents.push(events[i]);
 			}
 		}
-	}
-	
-	
-	
-	/* Semi-transparent Overlay Helpers
-	-----------------------------------------------------*/
-	// TODO: should be consolidated with BasicView's methods
 
-
-	function renderDayOverlay(overlayStart, overlayEnd, refreshCoordinateGrid) { // overlayEnd is exclusive
-
-		if (refreshCoordinateGrid) {
-			coordinateGrid.build();
+		// render the events in the subcomponents
+		timedSegs = this.timeGrid.renderEvents(timedEvents);
+		if (this.dayGrid) {
+			daySegs = this.dayGrid.renderEvents(dayEvents);
 		}
 
-		var segments = rangeToSegments(overlayStart, overlayEnd);
+		// the all-day area is flexible and might have a lot of events, so shift the height
+		this.updateHeight();
 
-		for (var i=0; i<segments.length; i++) {
-			var segment = segments[i];
-			dayBind(
-				renderCellOverlay(
-					segment.row,
-					segment.leftCol,
-					segment.row,
-					segment.rightCol
-				)
-			);
-		}
-	}
-	
-	
-	function renderCellOverlay(row0, col0, row1, col1) { // only for all-day?
-		var rect = coordinateGrid.rect(row0, col0, row1, col1, slotLayer);
-		return renderOverlay(rect, slotLayer);
-	}
-	
-
-	function renderSlotOverlay(overlayStart, overlayEnd) {
-		for (var i=0; i<colCnt; i++) {
-			var dayStart = cellToDate(0, i);
-			var dayEnd = addDays(cloneDate(dayStart), 1);
-			var stretchStart = new Date(Math.max(dayStart, overlayStart));
-			var stretchEnd = new Date(Math.min(dayEnd, overlayEnd));
-			if (stretchStart < stretchEnd) {
-				var rect = coordinateGrid.rect(0, i, 0, i, slotContainer); // only use it for horizontal coords
-				var top = timePosition(dayStart, stretchStart);
-				var bottom = timePosition(dayStart, stretchEnd);
-				rect.top = top;
-				rect.height = bottom - top;
-				slotBind(
-					renderOverlay(rect, slotContainer)
-				);
-			}
-		}
-	}
-	
-	
-	
-	/* Coordinate Utilities
-	-----------------------------------------------------------------------------*/
-	
-	
-	coordinateGrid = new CoordinateGrid(function(rows, cols) {
-		var e, n, p;
-		dayHeadCells.each(function(i, _e) {
-			e = $(_e);
-			n = e.offset().left;
-			if (i) {
-				p[1] = n;
-			}
-			p = [n];
-			cols[i] = p;
-		});
-		p[1] = n + e.outerWidth();
-		if (opt('allDaySlot')) {
-			e = allDayRow;
-			n = e.offset().top;
-			rows[0] = [n, n+e.outerHeight()];
-		}
-		var slotTableTop = slotContainer.offset().top;
-		var slotScrollerTop = slotScroller.offset().top;
-		var slotScrollerBottom = slotScrollerTop + slotScroller.outerHeight();
-		function constrain(n) {
-			return Math.max(slotScrollerTop, Math.min(slotScrollerBottom, n));
-		}
-		for (var i=0; i<slotCnt*snapRatio; i++) { // adapt slot count to increased/decreased selection slot count
-			rows.push([
-				constrain(slotTableTop + snapHeight*i),
-				constrain(slotTableTop + snapHeight*(i+1))
-			]);
-		}
-	});
-	
-	
-	hoverListener = new HoverListener(coordinateGrid);
-	
-	colPositions = new HorizontalPositionCache(function(col) {
-		return dayBodyCellInners.eq(col);
-	});
-	
-	colContentPositions = new HorizontalPositionCache(function(col) {
-		return dayBodyCellContentInners.eq(col);
-	});
-	
-	
-	function colLeft(col) {
-		return colPositions.left(col);
-	}
+		View.prototype.renderEvents.call(this, events); // call the super-method
+	},
 
 
-	function colContentLeft(col) {
-		return colContentPositions.left(col);
-	}
+	// Retrieves all segment objects that are rendered in the view
+	getSegs: function() {
+		return this.timeGrid.getSegs().concat(
+			this.dayGrid ? this.dayGrid.getSegs() : []
+		);
+	},
 
 
-	function colRight(col) {
-		return colPositions.right(col);
-	}
-	
-	
-	function colContentRight(col) {
-		return colContentPositions.right(col);
-	}
+	// Unrenders all event elements and clears internal segment data
+	destroyEvents: function() {
+		View.prototype.destroyEvents.call(this); // do this before the grids' segs have been cleared
+
+		// if destroyEvents is being called as part of an event rerender, renderEvents will be called shortly
+		// after, so remember what the scroll value was so we can restore it.
+		this.recordScroll();
+
+		// destroy the events in the subcomponents
+		this.timeGrid.destroyEvents();
+		if (this.dayGrid) {
+			this.dayGrid.destroyEvents();
+		}
+
+		// we DON'T need to call updateHeight() because:
+		// A) a renderEvents() call always happens after this, which will eventually call updateHeight()
+		// B) in IE8, this causes a flash whenever events are rerendered
+	},
 
 
-	function getIsCellAllDay(cell) {
-		return opt('allDaySlot') && !cell.row;
-	}
+	/* Event Dragging
+	------------------------------------------------------------------------------------------------------------------*/
 
 
-	function realCellToDate(cell) { // ugh "real" ... but blame it on our abuse of the "cell" system
-		var d = cellToDate(0, cell.col);
-		var slotIndex = cell.row;
-		if (opt('allDaySlot')) {
-			slotIndex--;
+	// Renders a visual indication of an event being dragged over the view.
+	// A returned value of `true` signals that a mock "helper" event has been rendered.
+	renderDrag: function(start, end, seg) {
+		if (start.hasTime()) {
+			return this.timeGrid.renderDrag(start, end, seg);
 		}
-		if (slotIndex >= 0) {
-			addMinutes(d, minMinute + slotIndex * snapMinutes);
+		else if (this.dayGrid) {
+			return this.dayGrid.renderDrag(start, end, seg);
 		}
-		return d;
-	}
-	
-	
-	// get the Y coordinate of the given time on the given day (both Date objects)
-	function timePosition(day, time) { // both date objects. day holds 00:00 of current day
-		day = cloneDate(day, true);
-		if (time < addMinutes(cloneDate(day), minMinute)) {
-			return 0;
+	},
+
+
+	// Unrenders a visual indications of an event being dragged over the view
+	destroyDrag: function() {
+		this.timeGrid.destroyDrag();
+		if (this.dayGrid) {
+			this.dayGrid.destroyDrag();
 		}
-		if (time >= addMinutes(cloneDate(day), maxMinute)) {
-			return slotTable.height();
-		}
-		var slotMinutes = opt('slotMinutes'),
-			minutes = time.getHours()*60 + time.getMinutes() - minMinute,
-			slotI = Math.floor(minutes / slotMinutes),
-			slotTop = slotTopCache[slotI];
-		if (slotTop === undefined) {
-			slotTop = slotTopCache[slotI] =
-				slotTable.find('tr').eq(slotI).find('td div')[0].offsetTop;
-				// .eq() is faster than ":eq()" selector
-				// [0].offsetTop is faster than .position().top (do we really need this optimization?)
-				// a better optimization would be to cache all these divs
-		}
-		return Math.max(0, Math.round(
-			slotTop - 1 + slotHeight * ((minutes % slotMinutes) / slotMinutes)
-		));
-	}
-	
-	
-	function getAllDayRow(index) {
-		return allDayRow;
-	}
-	
-	
-	function defaultEventEnd(event) {
-		var start = cloneDate(event.start);
-		if (event.allDay) {
-			return start;
-		}
-		return addMinutes(start, opt('defaultEventMinutes'));
-	}
-	
-	
-	
+	},
+
+
 	/* Selection
-	---------------------------------------------------------------------------------*/
-	
-	
-	function defaultSelectionEnd(startDate, allDay) {
-		if (allDay) {
-			return cloneDate(startDate);
+	------------------------------------------------------------------------------------------------------------------*/
+
+
+	// Renders a visual indication of a selection
+	renderSelection: function(start, end) {
+		if (start.hasTime() || end.hasTime()) {
+			this.timeGrid.renderSelection(start, end);
 		}
-		return addMinutes(cloneDate(startDate), opt('slotMinutes'));
-	}
-	
-	
-	function renderSelection(startDate, endDate, allDay) { // only for all-day
-		if (allDay) {
-			if (opt('allDaySlot')) {
-				renderDayOverlay(startDate, addDays(cloneDate(endDate), 1), true);
-			}
-		}else{
-			renderSlotSelection(startDate, endDate);
+		else if (this.dayGrid) {
+			this.dayGrid.renderSelection(start, end);
 		}
-	}
-	
-	
-	function renderSlotSelection(startDate, endDate) {
-		var helperOption = opt('selectHelper');
-		coordinateGrid.build();
-		if (helperOption) {
-			var col = dateToCell(startDate).col;
-			if (col >= 0 && col < colCnt) { // only works when times are on same day
-				var rect = coordinateGrid.rect(0, col, 0, col, slotContainer); // only for horizontal coords
-				var top = timePosition(startDate, startDate);
-				var bottom = timePosition(startDate, endDate);
-				if (bottom > top) { // protect against selections that are entirely before or after visible range
-					rect.top = top;
-					rect.height = bottom - top;
-					rect.left += 2;
-					rect.width -= 5;
-					if ($.isFunction(helperOption)) {
-						var helperRes = helperOption(startDate, endDate);
-						if (helperRes) {
-							rect.position = 'absolute';
-							selectionHelper = $(helperRes)
-								.css(rect)
-								.appendTo(slotContainer);
-						}
-					}else{
-						rect.isStart = true; // conside rect a "seg" now
-						rect.isEnd = true;   //
-						selectionHelper = $(slotSegHtml(
-							{
-								title: '',
-								start: startDate,
-								end: endDate,
-								className: ['fc-select-helper'],
-								editable: false
-							},
-							rect
-						));
-						selectionHelper.css('opacity', opt('dragOpacity'));
-					}
-					if (selectionHelper) {
-						slotBind(selectionHelper);
-						slotContainer.append(selectionHelper);
-						setOuterWidth(selectionHelper, rect.width, true); // needs to be after appended
-						setOuterHeight(selectionHelper, rect.height, true);
-					}
-				}
-			}
-		}else{
-			renderSlotOverlay(startDate, endDate);
-		}
-	}
-	
-	
-	function clearSelection() {
-		clearOverlays();
-		if (selectionHelper) {
-			selectionHelper.remove();
-			selectionHelper = null;
-		}
-	}
-	
-	
-	function slotSelectionMousedown(ev) {
-		if (ev.which == 1 && opt('selectable')) { // ev.which==1 means left mouse button
-			unselect(ev);
-			var dates;
-			hoverListener.start(function(cell, origCell) {
-				clearSelection();
-				if (cell && cell.col == origCell.col && !getIsCellAllDay(cell)) {
-					var d1 = realCellToDate(origCell);
-					var d2 = realCellToDate(cell);
-					dates = [
-						d1,
-						addMinutes(cloneDate(d1), snapMinutes), // calculate minutes depending on selection slot minutes 
-						d2,
-						addMinutes(cloneDate(d2), snapMinutes)
-					].sort(dateCompare);
-					renderSlotSelection(dates[0], dates[3]);
-				}else{
-					dates = null;
-				}
-			}, ev);
-			$(document).one('mouseup', function(ev) {
-				hoverListener.stop();
-				if (dates) {
-					if (+dates[0] == +dates[1]) {
-						reportDayClick(dates[0], false, ev);
-					}
-					reportSelection(dates[0], dates[3], false, ev);
-				}
-			});
+	},
+
+
+	// Unrenders a visual indications of a selection
+	destroySelection: function() {
+		this.timeGrid.destroySelection();
+		if (this.dayGrid) {
+			this.dayGrid.destroySelection();
 		}
 	}
 
-
-	function reportDayClick(date, allDay, ev) {
-		trigger('dayClick', dayBodyCells[dateToCell(date).col], date, allDay, ev);
-	}
-	
-	
-	
-	/* External Dragging
-	--------------------------------------------------------------------------------*/
-	
-	
-	function dragStart(_dragElement, ev, ui) {
-		hoverListener.start(function(cell) {
-			clearOverlays();
-			if (cell) {
-				if (getIsCellAllDay(cell)) {
-					renderCellOverlay(cell.row, cell.col, cell.row, cell.col);
-				}else{
-					var d1 = realCellToDate(cell);
-					var d2 = addMinutes(cloneDate(d1), opt('defaultEventMinutes'));
-					renderSlotOverlay(d1, d2);
-				}
-			}
-		}, ev);
-	}
-	
-	
-	function dragStop(_dragElement, ev, ui) {
-		var cell = hoverListener.stop();
-		clearOverlays();
-		if (cell) {
-			trigger('drop', _dragElement, realCellToDate(cell), getIsCellAllDay(cell), ev, ui);
-		}
-	}
-	
-
-}
+});

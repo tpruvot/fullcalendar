@@ -1,53 +1,42 @@
 
-fcViews.basicWeek = BasicWeekView;
+/* A week view with simple day cells running horizontally
+----------------------------------------------------------------------------------------------------------------------*/
+// TODO: a WeekView mixin for calculating dates and titles
 
-function BasicWeekView(element, calendar) {
-	var t = this;
-	
-	
-	// exports
-	t.render = render;
-	
-	
-	// imports
-	BasicView.call(t, element, calendar, 'basicWeek');
-	var opt = t.opt;
-	var renderBasic = t.renderBasic;
-	var skipHiddenDays = t.skipHiddenDays;
-	var getCellsPerWeek = t.getCellsPerWeek;
-	var formatDates = calendar.formatDates;
-	
-	
-	function render(date, delta) {
+fcViews.basicWeek = BasicWeekView; // register this view
 
-		if (delta) {
-			addDays(date, delta * 7);
-		}
+function BasicWeekView(calendar) {
+	BasicView.call(this, calendar); // call the super-constructor
+}
 
-		var start = addDays(cloneDate(date), -((date.getDay() - opt('firstDay') + 7) % 7));
-		var end = addDays(cloneDate(start), 7);
 
-		var visStart = cloneDate(start);
-		skipHiddenDays(visStart);
+BasicWeekView.prototype = createObject(BasicView.prototype); // define the super-class
+$.extend(BasicWeekView.prototype, {
 
-		var visEnd = cloneDate(end);
-		skipHiddenDays(visEnd, -1, true);
+	name: 'basicWeek',
 
-		var colCnt = getCellsPerWeek();
 
-		t.start = start;
-		t.end = end;
-		t.visStart = visStart;
-		t.visEnd = visEnd;
+	incrementDate: function(date, delta) {
+		return date.clone().stripTime().add(delta, 'weeks').startOf('week');
+	},
 
-		t.title = formatDates(
-			visStart,
-			addDays(cloneDate(visEnd), -1),
-			opt('titleFormat')
+
+	render: function(date) {
+
+		this.intervalStart = date.clone().stripTime().startOf('week');
+		this.intervalEnd = this.intervalStart.clone().add(1, 'weeks');
+
+		this.start = this.skipHiddenDays(this.intervalStart);
+		this.end = this.skipHiddenDays(this.intervalEnd, -1, true);
+
+		this.title = this.calendar.formatRange(
+			this.start,
+			this.end.clone().subtract(1), // make inclusive by subtracting 1 ms
+			this.opt('titleFormat'),
+			' \u2014 ' // emphasized dash
 		);
 
-		renderBasic(1, colCnt, false);
+		BasicView.prototype.render.call(this, 1, this.getCellsPerWeek(), false); // call the super-method
 	}
 	
-	
-}
+});

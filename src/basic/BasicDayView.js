@@ -1,40 +1,35 @@
 
-fcViews.basicDay = BasicDayView;
+/* A view with a single simple day cell
+----------------------------------------------------------------------------------------------------------------------*/
 
+fcViews.basicDay = BasicDayView; // register this view
 
-function BasicDayView(element, calendar) {
-	var t = this;
-	
-	
-	// exports
-	t.render = render;
-	
-	
-	// imports
-	BasicView.call(t, element, calendar, 'basicDay');
-	var opt = t.opt;
-	var renderBasic = t.renderBasic;
-	var skipHiddenDays = t.skipHiddenDays;
-	var formatDate = calendar.formatDate;
-	
-	
-	function render(date, delta) {
-
-		if (delta) {
-			addDays(date, delta);
-		}
-		skipHiddenDays(date, delta < 0 ? -1 : 1);
-
-		var start = cloneDate(date, true);
-		var end = addDays(cloneDate(start), 1);
-
-		t.title = formatDate(date, opt('titleFormat'));
-
-		t.start = t.visStart = start;
-		t.end = t.visEnd = end;
-
-		renderBasic(1, 1, false);
-	}
-	
-	
+function BasicDayView(calendar) {
+	BasicView.call(this, calendar); // call the super-constructor
 }
+
+
+BasicDayView.prototype = createObject(BasicView.prototype); // define the super-class
+$.extend(BasicDayView.prototype, {
+
+	name: 'basicDay',
+
+
+	incrementDate: function(date, delta) {
+		var out = date.clone().stripTime().add(delta, 'days');
+		out = this.skipHiddenDays(out, delta < 0 ? -1 : 1);
+		return out;
+	},
+
+
+	render: function(date) {
+
+		this.start = this.intervalStart = date.clone().stripTime();
+		this.end = this.intervalEnd = this.start.clone().add(1, 'days');
+
+		this.title = this.calendar.formatDate(this.start, this.opt('titleFormat'));
+
+		BasicView.prototype.render.call(this, 1, 1, false); // call the super-method
+	}
+
+});

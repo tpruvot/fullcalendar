@@ -1,25 +1,30 @@
 <!DOCTYPE html>
 <html>
 <head>
-<link href='../build/out/fullcalendar.css' rel='stylesheet' />
-<link href='../build/out/fullcalendar.print.css' rel='stylesheet' media='print' />
-<script src='../lib/jquery/jquery.js'></script>
-<script src='../lib/jquery-ui/ui/jquery-ui.js'></script>
-<script src='../build/out/fullcalendar.js'></script>
+<link href='../dist/fullcalendar.css' rel='stylesheet' />
+<link href='../dist/fullcalendar.print.css' rel='stylesheet' media='print' />
+<script src='../lib/jquery/dist/jquery.js'></script>
+<script src='../lib/moment/moment.js'></script>
+<script src='../dist/fullcalendar.js'></script>
 <script>
 
 	$(document).ready(function() {
 		
 		$('#calendar').fullCalendar({
-			year: 2010,
-			month: 0,
+			defaultDate: '2010-01-01',
 			header: {
 				left: 'prev,next today',
 				center: 'title',
 				right: 'month,agendaWeek,basicWeek,agendaDay,basicDay'
 			},
 			editable: true,
-			events: "many_events_json.txt"
+			events: "many_events_json.txt",
+			eventDataTransform: function(input) {
+				return $.extend({}, input, {
+					start: input.start * 1000,
+					end: input.end ? (input.end * 1000) : null
+				});
+			}
 		});
 		
 	});

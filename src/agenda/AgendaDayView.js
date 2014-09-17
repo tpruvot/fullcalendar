@@ -1,40 +1,35 @@
 
-fcViews.agendaDay = AgendaDayView;
+/* A day view with an all-day cell area at the top, and a time grid below
+----------------------------------------------------------------------------------------------------------------------*/
 
+fcViews.agendaDay = AgendaDayView; // register the view
 
-function AgendaDayView(element, calendar) {
-	var t = this;
-	
-	
-	// exports
-	t.render = render;
-	
-	
-	// imports
-	AgendaView.call(t, element, calendar, 'agendaDay');
-	var opt = t.opt;
-	var renderAgenda = t.renderAgenda;
-	var skipHiddenDays = t.skipHiddenDays;
-	var formatDate = calendar.formatDate;
-	
-	
-	function render(date, delta) {
-
-		if (delta) {
-			addDays(date, delta);
-		}
-		skipHiddenDays(date, delta < 0 ? -1 : 1);
-
-		var start = cloneDate(date, true);
-		var end = addDays(cloneDate(start), 1);
-
-		t.title = formatDate(date, opt('titleFormat'));
-
-		t.start = t.visStart = start;
-		t.end = t.visEnd = end;
-
-		renderAgenda(1);
-	}
-	
-
+function AgendaDayView(calendar) {
+	AgendaView.call(this, calendar); // call the super-constructor
 }
+
+
+AgendaDayView.prototype = createObject(AgendaView.prototype); // define the super-class
+$.extend(AgendaDayView.prototype, {
+
+	name: 'agendaDay',
+
+
+	incrementDate: function(date, delta) {
+		var out = date.clone().stripTime().add(delta, 'days');
+		out = this.skipHiddenDays(out, delta < 0 ? -1 : 1);
+		return out;
+	},
+
+
+	render: function(date) {
+
+		this.start = this.intervalStart = date.clone().stripTime();
+		this.end = this.intervalEnd = this.start.clone().add(1, 'days');
+
+		this.title = this.calendar.formatDate(this.start, this.opt('titleFormat'));
+
+		AgendaView.prototype.render.call(this, 1); // call the super-method
+	}
+
+});
