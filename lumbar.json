@@ -43,12 +43,14 @@
         "src/agenda/AgendaView.js",
         "src/agenda/AgendaWeekView.js",
         "src/agenda/AgendaDayView.js",
+        "src/year/YearView.js",
         "src/outro.js"
       ],
       "styles": [
         "src/common/common.css",
         "src/main.css",
         "src/basic/basic.css",
+        "src/year/year.css",
         "src/agenda/agenda.css"
       ]
     },

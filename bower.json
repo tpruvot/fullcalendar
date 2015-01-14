@@ -1,13 +1,13 @@
 {
   "name": "fullcalendar",
-  "version": "2.2.6",
+  "version": "2.2.6-yearview",
   "description": "Full-sized drag & drop event calendar",
   "keywords": [
     "calendar",
     "event",
     "full-sized"
   ],
-  "homepage": "http://arshaw.com/fullcalendar/",
+  "homepage": "http://github.com/tpruvot/fullcalendar/",
   "dependencies": {
     "jquery": ">=1.7.1",
     "moment": ">=2.5.0"

@@ -11,11 +11,14 @@
 
 	$(document).ready(function() {
 		$('#calendar').fullCalendar({
+
+			googleCalendarApiKey: 'AIzaSyDcnW6WejpTOCffshGDDb4neIrXVUA1EAE',
+
 			weekends: false,
 			header: {
 				left: 'prev,next today',
 				center: 'title',
-				right: 'month,agendaWeek,basicWeek,agendaDay,basicDay'
+				right: 'year,month,agendaWeek,basicWeek,agendaDay,basicDay'
 			},
 			//editable: true,
 			eventSources: [

@@ -35,6 +35,15 @@ var defaults = {
 
 	//allDayDefault: undefined,
 
+	// date restriction
+	minDate: null,
+	maxDate: null,
+
+	// year view
+	firstDay: 0, // start day of the week (Sunday)
+	yearTitleFormat: 'YYYY',
+	yearFormat: 'YYYY',
+
 	// locale
 	isRTL: false,
 	defaultButtonText: {
@@ -43,6 +52,7 @@ var defaults = {
 		prevYear: "prev year",
 		nextYear: "next year",
 		today: 'today',
+		year: 'year',
 		month: 'month',
 		week: 'week',
 		day: 'day'

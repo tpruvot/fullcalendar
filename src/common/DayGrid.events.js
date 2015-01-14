@@ -45,9 +45,11 @@ DayGrid.mixin({
 
 		// append to each row's content skeleton
 		this.rowEls.each(function(i, rowNode) {
-			$(rowNode).find('.fc-content-skeleton > table').append(
-				rowStructs[i].tbodyEl
-			);
+			if (i < rowStructs.length) {
+				$(rowNode).find('.fc-content-skeleton > table').append(
+					rowStructs[i].tbodyEl
+				);
+			}
 		});
 
 		return segs; // return only the segs that were actually rendered

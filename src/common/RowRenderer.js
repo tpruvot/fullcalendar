@@ -44,8 +44,8 @@ var RowRenderer = Class.extend({
 	// `cells` can be an HTML string of <td>'s or a jQuery <tr> element
 	// `row` is an optional row number.
 	bookendCells: function(cells, rowType, row) {
-		var intro = this.getHtmlRenderer('intro', rowType)(row || 0);
-		var outro = this.getHtmlRenderer('outro', rowType)(row || 0);
+		var intro = this.getHtmlRenderer('intro', rowType)(row || 0, this);
+		var outro = this.getHtmlRenderer('outro', rowType)(row || 0, this);
 		var prependHtml = this.isRTL ? outro : intro;
 		var appendHtml = this.isRTL ? intro : outro;
 
