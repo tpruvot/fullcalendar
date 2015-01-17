@@ -625,7 +625,10 @@ fcViews.year = View.extend({
 				if (eventLimit && typeof eventLimit === 'number') {
 					dayGrid.limitRows(eventLimit); // limit the levels first so the height can redistribute after
 				}
-				scrollerHeight = view.computeScrollerHeight(totalHeight, dayGrid.scrollerEl);
+				if (!scrollerHeight) {
+					// compute only once based on first month
+					scrollerHeight = view.computeScrollerHeight(totalHeight, dayGrid.scrollerEl);
+				}
 				view.setGridHeight(scrollerHeight, isAuto, dayGrid);
 
 				// is the event limit dynamically calculated?
