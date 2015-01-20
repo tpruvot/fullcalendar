@@ -192,6 +192,7 @@ fcViews.year = View.extend({
 			var display = (hiddenMonth ? 'display:none;' : '');
 			var di = fc.moment([miYear,m,1]);
 			var monthName = capitaliseFirstLetter(di.format('MMMM'));
+			var monthID = formatDate(di, 'YYYYMM');
 			y = di.year();
 			if (this.firstMonth + this.nbMonths > 12) {
 				monthName = monthName + ' ' + y;
@@ -212,7 +213,7 @@ fcViews.year = View.extend({
 			s +='<td class="fc-year-monthly-td" style="' + display + '">';
 
 			s +='<div class="fc-year-monthly-name'+(monthsRow===0 ? ' fc-first' : '')+'">' +
-					'<a data-year="'+y+'" data-month="'+m+'" href="#">' + htmlEscape(monthName) + '</a>' +
+					'<a name="'+monthID+'" data-year="'+y+'" data-month="'+m+'" href="#">' + htmlEscape(monthName) + '</a>' +
 				'</div>';
 
 			s +='<div class="fc-row '+headerClass+'">';
