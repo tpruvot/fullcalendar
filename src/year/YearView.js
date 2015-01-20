@@ -85,7 +85,8 @@ fcViews.year = View.extend({
 	computeTitle: function() {
 		if (this.opt('yearTitleFormat') !== null) {
 			var title = this.intervalStart.format(this.opt('yearTitleFormat'));
-			if (this.intervalEnd.year() != this.intervalStart.year()) {
+			var endMonth = this.intervalStart.clone().add(this.nbMonths - 1, 'months');
+			if (endMonth.year() != this.intervalStart.year()) {
 				title += this.intervalEnd.format(' - YYYY');
 			}
 			return title;
