@@ -19,7 +19,7 @@
 
 			dayRender: function(date, td) {
 				//console.log(date, td);
-				td.find('.fc-day-content').prepend('this is the ' + date.getDate());
+				td.prepend('<br/>this is the ' + date.date());
 			},
 
 			dayClick: function(date, allDay) {
@@ -32,7 +32,7 @@
 			header: {
 				left: 'prev,next today',
 				center: 'title',
-				right: 'month,agendaWeek,basicWeek,agendaDay,basicDay'
+				right: 'year,month,agendaWeek,basicWeek,agendaDay,basicDay'
 			},
 			editable: true,
 			events: [
