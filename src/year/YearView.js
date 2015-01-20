@@ -39,6 +39,7 @@ fcViews.year = View.extend({
 	firstDay: null,
 	firstMonth: null,
 	lastMonth: null,
+	yearColumns: 2,
 	nbMonths: null,
 	hiddenMonths: [],
 
@@ -73,6 +74,7 @@ fcViews.year = View.extend({
 		this.firstMonth = parseInt(this.opt('firstMonth'), 10) || 0;
 		this.lastMonth = this.opt('lastMonth') || this.firstMonth+12;
 		this.hiddenMonths = this.opt('hiddenMonths') || [];
+		this.yearColumns = parseInt(this.opt('yearColumns'), 10) || 2;  //ex: '2x6', '3x4', '4x3'
 		this.colFormat = this.opt('columnFormat');
 		this.weekNumbersVisible = this.opt('weekNumbers');
 		this.nwe = this.opt('weekends') ? 0 : 1;
@@ -118,7 +120,7 @@ fcViews.year = View.extend({
 		this.end.add((7 - this.end.weekday()) % 7, 'days'); // move to end of week if not already
 		this.end = this.skipHiddenDays(this.end, -1, true); // move in from the last invisible days of the week
 
-		var monthsPerRow = this.opt('yearColumns') || 2; //ex: '2x6', '3x4', '4x3'
+		var monthsPerRow = parseInt(this.opt('yearColumns'), 10);
 		var weekCols = this.opt('weekends') ? 7 : 5; // this.getCellsPerWeek()
 
 		this.renderYear(monthsPerRow, weekCols, true);
@@ -131,8 +133,7 @@ fcViews.year = View.extend({
 			this.destroyEvents();
 			this.table.remove();
 		}
-		var monthsPerRow = parseInt(yearColumns, 10); //"3x4" parses to 3
-		this.buildSkeleton(monthsPerRow, showNumbers);
+		this.buildSkeleton(this.yearColumns, showNumbers);
 		this.buildDayGrids();
 		this.updateCells();
 	},
@@ -669,11 +670,10 @@ fcViews.year = View.extend({
 	// Refreshes the vertical dimensions of the calendar
 	updateHeight: function() {
 		var calendar = this.calendar; // we poll the calendar for height information
-
-		this.setHeight(
-			calendar.getSuggestedViewHeight() * 0.57, /* based on width */
-			calendar.isHeightAuto()
-		);
+		if (this.yearColumns != 0) {
+			var height = calendar.getSuggestedViewHeight() * (1.10 / (0.01 +this.yearColumns));
+			this.setHeight(height, calendar.isHeightAuto());
+		}
 	},
 
 
