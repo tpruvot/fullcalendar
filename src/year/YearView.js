@@ -5,7 +5,7 @@
 
 setDefaults({
 	yearColumns: 2,
-	fixedWeekCount: false
+	fixedWeekCount: 5 // 5 rows per month minimum (else true or false)
 });
 
 // It is a manager for DayGrid sub components, which does most of the heavy lifting.
@@ -164,15 +164,7 @@ fcViews.year = View.extend({
 		return range;
 	},
 
-	isFixedWeeks: function() {
-		var weekMode = this.opt('weekMode'); // LEGACY: weekMode is deprecated
-		if (weekMode) {
-			return weekMode === 'fixed'; // if any other type of weekMode, assume NOT fixed
-		}
-
-		return this.opt('fixedWeekCount');
-	},
-
+	// Build the year layout
 	buildSkeleton: function(monthsPerRow, showNumbers) {
 		var i, n, y, h = 0, monthsRow = 0;
 		var miYear = this.intervalStart.year();
@@ -316,6 +308,14 @@ fcViews.year = View.extend({
 		view.coordMap = view.dayGrid.coordMap;
 	},
 
+	isFixedWeeks: function() {
+		var weekMode = this.opt('weekMode'); // LEGACY: weekMode is deprecated
+		if (weekMode) {
+			return weekMode === 'fixed'; // if any other type of weekMode, assume NOT fixed
+		}
+		return this.opt('fixedWeekCount');
+	},
+
 	// Compute the value to feed into setRange. Overrides superclass.
 	computeMonthRange: function(date) {
 		this.constructor.duration = { months: 1 };
@@ -331,8 +331,21 @@ fcViews.year = View.extend({
 				range.end.add(1, 'week').startOf('week');
 				range.end = this.skipHiddenDays(range.end, -1, true); // exclusively move backwards
 			}
-		}
 
+			var rowCnt = Math.ceil(range.end.diff(range.start, 'weeks', true)); // could be partial weeks due to hiddenDays
+			// ensure 6 weeks if isFixedWeeks opt is set
+			if (this.isFixedWeeks() === 5) {
+				// else minimum 5 rows
+				if (rowCnt == 4) {
+					range.end.add(1, 'weeks');
+				}
+			}
+			else if (this.isFixedWeeks()) {
+				if (rowCnt <= 6) {
+					range.end.add(6 - rowCnt, 'weeks');
+				}
+			}
+		}
 		return range;
 	},
 
@@ -670,7 +683,7 @@ fcViews.year = View.extend({
 	// Refreshes the vertical dimensions of the calendar
 	updateHeight: function() {
 		var calendar = this.calendar; // we poll the calendar for height information
-		if (this.yearColumns != 0) {
+		if (this.yearColumns > 0) {
 			var height = calendar.getSuggestedViewHeight() * (1.10 / (0.01 +this.yearColumns));
 			this.setHeight(height, calendar.isHeightAuto());
 		}

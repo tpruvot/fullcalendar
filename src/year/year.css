@@ -129,3 +129,8 @@
 
 .fc-year-view .fc-event-title {
 }
+
+.fc-year-view .fc-time {
+	/* hide time in year view */
+	display: none;
+}
