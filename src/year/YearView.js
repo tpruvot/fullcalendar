@@ -180,10 +180,10 @@ fcViews.year = View.extend({
 		s += '<td class="fc-year-month-border fc-first"></td>';
 		for (n=0; n<this.nbMonths; n++) {
 
-			var m = (this.intervalStart.month() + n) % 12;
-			var hiddenMonth = ($.inArray(m, this.hiddenMonths) != -1);
+			var m = (this.intervalStart.month() + n);
+			var hiddenMonth = ($.inArray((m % 12), this.hiddenMonths) != -1);
 			var display = (hiddenMonth ? 'display:none;' : '');
-			var di = fc.moment([miYear,m,1]);
+			var di = fc.moment([miYear+(m / 12),(m % 12),1]);
 			var monthName = capitaliseFirstLetter(di.format('MMMM'));
 			var monthID = formatDate(di, 'YYYYMM');
 			y = di.year();
