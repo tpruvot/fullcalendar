@@ -53,9 +53,25 @@ var GridCoordMap = Class.extend({
 		var hitRow = null;
 		var hitCol = null;
 		var i, coords;
-		var cell;
+		var cell = null;
+		var inThisGrid = this.inBounds(x, y);
 
-		if (this.inBounds(x, y)) {
+		if (!inThisGrid && this.grid.view.name == 'year') {
+
+			// redirect to the right grid getCell...
+			$.each(this.grid.view.dayGrids, function(offset, dayGrid) {
+				var map = dayGrid.coordMap;
+				map.computeBounds();
+				if (map.inBounds(x, y)) {
+					map.build();
+					cell = map.getCell(x, y);
+					return false;
+				}
+			});
+
+			return cell;
+
+		} else {
 
 			for (i = 0; i < rowCoords.length; i++) {
 				coords = rowCoords[i];

@@ -4,6 +4,7 @@
 <link href='../dist/fullcalendar.css' rel='stylesheet' />
 <link href='../dist/fullcalendar.print.css' rel='stylesheet' media='print' />
 <script src='../lib/jquery/dist/jquery.js'></script>
+<script src='../lib/jquery-ui/jquery-ui.min.js'></script>
 <script src='../lib/moment/moment.js'></script>
 <script src='../dist/fullcalendar.js'></script>
 <script>
@@ -21,6 +22,7 @@
 			droppable: true,
 			drop: function(date, allDay, ev) {
 				console.log('drop', date, allDay, ev);
+				alert("Dropped on " + date.format());
 			},
 			//defaultView: 'agendaWeek',
 			
@@ -32,7 +34,7 @@
 			header: {
 				left: 'prev,next today',
 				center: 'title',
-				right: 'month,agendaWeek,basicWeek,agendaDay,basicDay'
+				right: 'year,month,agendaWeek,basicWeek,agendaDay,basicDay'
 			},
 			events: [
 				{

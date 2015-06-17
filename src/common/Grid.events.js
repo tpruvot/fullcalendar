@@ -257,6 +257,14 @@ Grid.mixin({
 		var event = seg.event;
 		var dropLocation;
 
+		if (view.name == 'year') {
+			var td = $(el).closest('td.fc-year-monthly-td');
+			var tds = td.closest('table').find('.fc-year-monthly-td');
+			var offset = tds.index(td);
+
+			view.dayGrid = view.dayGrids[offset];
+		}
+
 		// A clone of the original element that will move with the mouse
 		var mouseFollower = new MouseFollower(seg.el, {
 			parentEl: view.el,
@@ -533,6 +541,14 @@ Grid.mixin({
 				}
 				else {
 					_this.renderEventResize({ start: start, end: newEnd }, seg);
+					if (view.name == 'year') {
+						$.each(view.dayGrids, function(offset, dayGrid) {
+							if (dayGrid !== _this) {
+								dayGrid.destroyEventResize();
+								dayGrid.renderEventResize({ start: start, end: newEnd }, seg);
+							}
+						});
+					}
 					view.hideEvent(event);
 				}
 			},

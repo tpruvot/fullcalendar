@@ -1,0 +1,136 @@
+/* YearView
+--------------------------------------------------------------------------------------------------*/
+
+.fc-year-main-table {
+	border-spacing: 5px;
+}
+
+.fc td.fc-year-monthly-td,
+.fc td.fc-year-month-separator,
+.fc td.fc-year-month-border {
+	border-color: transparent;
+}
+
+.fc-year-monthly-td {
+	text-align: center;
+}
+
+.fc-year-month-border.fc-first {
+	width: 0;
+	max-width: 8px;
+}
+
+.fc-year-month-border.fc-last {
+	width: 0;
+	max-width: 8px;
+}
+
+.fc-year-month-separator {
+	width: 8px;
+}
+
+.fc-year-view .fc-row table.fc-year-month-header {
+	border-left: 1px solid #dddddd;
+	border-right: 1px solid #dddddd;
+}
+
+.fc-year-monthly-name {
+	margin-top: 16px;
+	line-height: 24px;
+}
+
+.fc-year-monthly-name.fc-first {
+	margin-top: 0;
+}
+
+.fc-year-monthly-name a {
+	color: black;
+	font-size: 1.2em;
+	font-weight: bold;
+	text-decoration: none;
+}
+
+.fc-year-monthly-footer {
+}
+
+.fc-year-view .fc-row .fc-bg table {
+	/* missing borders */
+	border-left: 1px solid #dddddd;
+	border-right: 1px solid #dddddd;
+}
+
+.fc-year-view .fc-row.fc-last .fc-bg table {
+	/* missing borders */
+	border-bottom: 1px solid #dddddd;
+}
+
+.fc-year-view .fc-week-number-head.ui-widget-header,
+.fc-year-view .fc-day-header.ui-widget-header {
+	/* non visible with 1px due to .fc-row:first-child table style */
+	border-bottom-width: 2px;
+}
+
+.fc-year-view .fc-rigid.fc-row {
+	/* fix: right and bottom borders hidden with overflow hidden */
+	overflow: inherit;
+}
+
+.fc-year-view .fc-day-grid .fc-row {
+	min-height: 42px; /* ensure that all rows are at least this tall */
+}
+
+.fc-year-view table {
+	font-size: .9em;
+}
+
+.fc-ltr .fc-year-view .fc-day-number {
+	text-align: right;
+}
+
+.fc-year-view td.fc-day-number {
+	padding: 0 2px;
+}
+
+/* week numbers */
+
+.fc-year-view th.fc-week-number-head {
+	font-size: 0.85em;
+	font-weight: normal;
+}
+
+.fc-year-view .fc-week-number-head {
+	max-width: 22px; overflow-x : hidden;
+	vertical-align: middle;
+}
+
+.fc-year-view td.fc-week-number {
+	text-align: center;
+	border-left-width: 1px;
+	border-left-style: solid;
+	/* border-left-color: #dddddd; */
+	font-size: 0.92em;
+	font-weight: normal;
+	padding-left: 2px;
+}
+
+/* events */
+
+.fc-year-view .fc-event {
+	font-size: .76em;
+	line-height: 1.15;
+	text-align: left;
+	border-radius: 2px;
+}
+
+.fc-year-view .fc-event-inner {
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.fc-year-view .fc-event-title {
+}
+
+.fc-year-view .fc-time {
+	/* hide time in year view */
+	display: none;
+}

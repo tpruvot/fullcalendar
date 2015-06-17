@@ -271,6 +271,7 @@ var Grid = fc.Grid = RowRenderer.extend({
 			//distance: 5, // needs more work if we want dayClick to fire correctly
 			scroll: view.opt('dragScroll'),
 			dragStart: function() {
+				// on click on a Day background...
 				view.unselect(); // since we could be rendering a new selection, we want to clear any old one
 			},
 			cellOver: function(cell, isOrig) {
@@ -357,6 +358,11 @@ var Grid = fc.Grid = RowRenderer.extend({
 
 	// Renders a visual indication of a selection. Will highlight by default but can be overridden by subclasses.
 	renderSelection: function(range) {
+		if (this.view.name == 'year' && !range.rendered) {
+			this.view.destroySelection();
+			range.rendered = true; /* prevent loops */
+			this.view.renderSelection(range, this);
+		}
 		this.renderHighlight(range);
 	},
 

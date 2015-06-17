@@ -200,3 +200,15 @@ tbody,
 .fc button {
 	display: none; /* don't display any button-related controls */
 }
+
+/* Year View
+--------------------------------------------------------------------------------------------------*/
+
+a.fc-year-monthly-name {
+	color: black;
+	text-decoration: none;
+}
+
+span.fc-button {
+	display: none;
+}

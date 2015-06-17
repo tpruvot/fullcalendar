@@ -316,7 +316,7 @@ var DayGrid = Grid.extend({
 		);
 
 		// if a segment from the same calendar but another component is being dragged, render a helper event
-		if (seg && !seg.el.closest(this.el).length) {
+		if (seg && !seg.el.closest(this.view.el).length) {
 
 			this.renderRangeHelper(dropLocation, seg);
 
