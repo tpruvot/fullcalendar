@@ -81,12 +81,13 @@ fcViews.year = View.extend({
 		this.tm = this.opt('theme') ? 'ui' : 'fc';
 		this.nbMonths = this.lastMonth - this.firstMonth;
 		this.lastMonth = this.lastMonth % 12;
+		this.lang = this.opt('lang');
 	},
 
 	// Computes what the title at the top of the calendar should be for this view
 	computeTitle: function() {
 		if (this.opt('yearTitleFormat') !== null) {
-			var title = this.intervalStart.format(this.opt('yearTitleFormat'));
+			var title = this.intervalStart.locale(this.lang).format(this.opt('yearTitleFormat'));
 			var endMonth = this.intervalStart.clone().add(this.nbMonths - 1, 'months');
 			if (endMonth.year() != this.intervalStart.year()) {
 				title += this.intervalEnd.format(' - YYYY');
@@ -174,7 +175,7 @@ fcViews.year = View.extend({
 		this.rowCnt = 0;
 		// init days based on 2013-12 (1st is Sunday)
 		for (n=0; n<7; n++) {
-			weekNames[n] = fc.moment([2013,11,1+n]).format('ddd');
+			weekNames[n] = fc.moment([2013,11,1+n]).locale(this.lang).format('ddd');
 		}
 		s = '<table class="fc-year-main-table fc-border-separate" style="width:100%;"><tr>';
 		s += '<td class="fc-year-month-border fc-first"></td>';
@@ -183,9 +184,9 @@ fcViews.year = View.extend({
 			var m = (this.intervalStart.month() + n);
 			var hiddenMonth = ($.inArray((m % 12), this.hiddenMonths) != -1);
 			var display = (hiddenMonth ? 'display:none;' : '');
-			var di = fc.moment([miYear+(m / 12),(m % 12),1]);
+			var di = fc.moment([miYear+(m / 12),(m % 12),1]).locale(this.lang);
 			var monthName = capitaliseFirstLetter(di.format('MMMM'));
-			var monthID = formatDate(di, 'YYYYMM');
+			var monthID = di.format('YYYYMM');
 			y = di.year();
 			if (this.firstMonth + this.nbMonths > 12) {
 				monthName = monthName + ' ' + y;
