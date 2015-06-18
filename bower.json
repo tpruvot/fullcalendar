@@ -10,7 +10,7 @@
   "homepage": "http://github.com/tpruvot/fullcalendar/",
   "dependencies": {
     "jquery": ">=1.7.1",
-    "moment": ">=2.5.0"
+    "moment": ">=2.5.0 <2.10"
   },
   "devDependencies": {
     "jquery-ui": ">=1.11.1",
