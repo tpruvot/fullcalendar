@@ -25,6 +25,7 @@
     "dist/fullcalendar.js",
     "dist/fullcalendar.css"
   ],
+  "license": "MIT",
   "ignore": [
     "*",
     "**/.*",
